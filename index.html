@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zeilen-Filter Pro (GitHub Pages)</title>
+    <style>
+        :root {
+            --primary: #0284c7;
+            --success: #16a34a;
+            --danger: #dc2626;
+            --bg: #f8fafc;
+            --surface: #ffffff;
+            --text: #0f172a;
+            --border: #e2e8f0;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: var(--surface);
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 40px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+        }
+
+        @media (max-width: 900px) {
+            .content {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .section {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .section h2 {
+            font-size: 16px;
+            color: var(--text);
+            margin-bottom: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #64748b;
+        }
+
+        label {
+            font-size: 13px;
+            color: #64748b;
+            margin-bottom: 6px;
+            font-weight: 500;
+        }
+
+        input[type="text"],
+        textarea {
+            padding: 14px;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: 'Courier New', monospace;
+            resize: none;
+            transition: all 0.2s;
+            background: #f8fafc;
+            color: var(--text);
+        }
+
+        input[type="text"]:focus,
+        textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+            background: white;
+            box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.1);
+        }
+
+        textarea {
+            height: 350px;
+            line-height: 1.6;
+        }
+
+        .button-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-top: 16px;
+        }
+
+        button {
+            padding: 12px 24px;
+            font-size: 14px;
+            font-weight: 600;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #0369a1;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(2, 132, 199, 0.3);
+        }
+
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+
+        .btn-secondary {
+            background: #e2e8f0;
+            color: var(--text);
+        }
+
+        .btn-secondary:hover {
+            background: #cbd5e1;
+        }
+
+        .btn-copy {
+            background: var(--success);
+            color: white;
+            grid-column: 1 / -1;
+        }
+
+        .btn-copy:hover {
+            background: #15803d;
+        }
+
+        .stats {
+            background: #f0f9ff;
+            border-left: 4px solid var(--primary);
+            padding: 16px;
+            border-radius: 6px;
+            margin-top: 20px;
+            font-size: 14px;
+        }
+
+        .stats-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 16px;
+            margin-top: 12px;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: var(--primary);
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #64748b;
+            margin-top: 4px;
+            text-transform: uppercase;
+        }
+
+        #output {
+            background: #1e293b;
+            color: #e2e8f0;
+            border: 1px solid #334155;
+            padding: 16px;
+            border-radius: 8px;
+            min-height: 350px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            white-space: pre-wrap;
+            word-break: break-all;
+            overflow-y: auto;
+            line-height: 1.6;
+        }
+
+        .output-section h2 {
+            margin-bottom: 12px;
+        }
+
+        .copy-btn-small {
+            background: var(--success);
+            color: white;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            margin-top: 12px;
+        }
+
+        .copy-btn-small:hover {
+            background: #15803d;
+        }
+
+        .warning {
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 16px;
+            font-size: 13px;
+            color: #92400e;
+        }
+
+        .success-message {
+            display: none;
+            background: #dcfce7;
+            border-left: 4px solid var(--success);
+            padding: 12px;
+            border-radius: 6px;
+            margin-top: 12px;
+            font-size: 13px;
+            color: #166534;
+            animation: slideIn 0.3s ease;
+        }
+
+        .success-message.show {
+            display: block;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .footer {
+            background: #f1f5f9;
+            padding: 20px;
+            text-align: center;
+            font-size: 12px;
+            color: #64748b;
+            border-top: 1px solid var(--border);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>⚡ Zeilen-Filter Pro</h1>
+            <p>Serverless Keyword-Filtering für große Datenmengen (läuft 100% im Browser)</p>
+        </div>
+
+        <div class="content">
+            <!-- Linke Spalte: Input -->
+            <div class="section">
+                <h2>📥 Eingabe</h2>
+                
+                <label for="keywords">Keywords eingeben (Komma-separiert)</label>
+                <input 
+                    type="text" 
+                    id="keywords" 
+                    placeholder="Beispiel: hbo,receipt,billing,confirmation"
+                    maxlength="1000"
+                >
+
+                <div class="warning">
+                    💡 <strong>Tipp:</strong> Enter-Taste = sofort filtern. Paste = auto-filter nach 500ms.
+                </div>
+
+                <label for="input" style="margin-top: 16px;">Daten reinkopieren</label>
+                <textarea 
+                    id="input" 
+                    placeholder="Eine Zeile pro Eintrag:&#10;email1:pass1&#10;email2:pass2&#10;hbo max receipt email3:pass3&#10;&#10;Kann bis zu 1 Million Zeilen verarbeiten!"
+                ></textarea>
+
+                <div class="button-group">
+                    <button class="btn-primary" onclick="filterLines()">🔍 Filter anwenden</button>
+                    <button class="btn-secondary" onclick="clearAll()">🗑️ Alles löschen</button>
+                </div>
+
+                <div class="stats">
+                    <div style="margin-bottom: 12px;"><strong>📊 Statistik:</strong></div>
+                    <div class="stats-row">
+                        <div class="stat-item">
+                            <div class="stat-value" id="totalLines">0</div>
+                            <div class="stat-label">Total Zeilen</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value" id="matchedLines">0</div>
+                            <div class="stat-label">Treffer</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value" id="percentMatch">0%</div>
+                            <div class="stat-label">Quote</div>
+                        </div>
+                    </div>
+                    <div style="margin-top: 12px; font-size: 12px; color: #64748b;">
+                        Verarbeitungszeit: <strong id="processingTime">0ms</strong>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Rechte Spalte: Output -->
+            <div class="section output-section">
+                <h2>📤 Ergebnis (nur Treffer)</h2>
+                <div id="output">Gefilterte Zeilen erscheinen hier...
+Paste deine Daten links ein und klick "Filter anwenden" oder drück Enter!</div>
+                
+                <button class="copy-btn-small" onclick="copyOutput()">📋 Ergebnis kopieren</button>
+                <div class="success-message" id="successMsg">✓ Ergebnis in Zwischenablage kopiert!</div>
+            </div>
+        </div>
+
+        <div class="footer">
+            💻 100% Browser-basiert (kein Server) | 🚀 Blitzschnell | 🔒 Daten verlassen deinen PC nicht | 
+            <a href="https://github.com" target="_blank" style="color: #0284c7; text-decoration: none;">GitHub</a>
+        </div>
+    </div>
+
+    <script>
+        let lastTimeout = null;
+
+        function filterLines() {
+            const startTime = performance.now();
+            const keywordsInput = document.getElementById('keywords').value.trim().toLowerCase();
+            const inputText = document.getElementById('input').value;
+
+            if (!keywordsInput) {
+                alert('❌ Keywords eingeben!');
+                return;
+            }
+
+            // Keywords splitten und bereinigen
+            const keywords = keywordsInput
+                .split(',')
+                .map(k => k.trim())
+                .filter(k => k.length > 0);
+
+            // Zeilen splitten und leer filtern
+            const lines = inputText
+                .split('\n')
+                .map(l => l.trim())
+                .filter(l => l.length > 0);
+
+            // Filtern
+            const filtered = [];
+            for (let line of lines) {
+                const lowerLine = line.toLowerCase();
+                // Prüfe ob eine der Keywords in dieser Zeile vorkommt
+                if (keywords.some(kw => lowerLine.includes(kw))) {
+                    filtered.push(line);
+                }
+            }
+
+            const endTime = performance.now();
+            const processingTime = (endTime - startTime).toFixed(2);
+
+            // Update Output
+            document.getElementById('output').textContent = 
+                filtered.length > 0 ? filtered.join('\n') : 'Keine Treffer gefunden.';
+
+            // Update Stats
+            document.getElementById('totalLines').textContent = lines.length.toLocaleString('de-DE');
+            document.getElementById('matchedLines').textContent = filtered.length.toLocaleString('de-DE');
+            document.getElementById('percentMatch').textContent = 
+                lines.length > 0 ? Math.round((filtered.length / lines.length) * 100) + '%' : '0%';
+            document.getElementById('processingTime').textContent = processingTime + 'ms';
+        }
+
+        function clearAll() {
+            document.getElementById('keywords').value = '';
+            document.getElementById('input').value = '';
+            document.getElementById('output').textContent = 
+                'Gefilterte Zeilen erscheinen hier...';
+            document.getElementById('totalLines').textContent = '0';
+            document.getElementById('matchedLines').textContent = '0';
+            document.getElementById('percentMatch').textContent = '0%';
+            document.getElementById('processingTime').textContent = '0ms';
+            document.getElementById('keywords').focus();
+        }
+
+        function copyOutput() {
+            const output = document.getElementById('output').textContent;
+            if (output === 'Gefilterte Zeilen erscheinen hier...' || output === 'Keine Treffer gefunden.') {
+                alert('Nichts zum Kopieren!');
+                return;
+            }
+
+            navigator.clipboard.writeText(output).then(() => {
+                const msg = document.getElementById('successMsg');
+                msg.classList.add('show');
+                setTimeout(() => msg.classList.remove('show'), 2000);
+            });
+        }
+
+        // Enter zum Filtern
+        document.getElementById('keywords').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                filterLines();
+            }
+        });
+
+        // Auto-Filter nach Paste (500ms Verzögerung)
+        document.getElementById('input').addEventListener('paste', function() {
+            clearTimeout(lastTimeout);
+            lastTimeout = setTimeout(() => {
+                if (document.getElementById('keywords').value.trim()) {
+                    filterLines();
+                }
+            }, 500);
+        });
+
+        // Focus auf Keywords beim Load
+        window.addEventListener('load', () => {
+            document.getElementById('keywords').focus();
+        });
+    </script>
+</body>
+</html>
