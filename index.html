@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ComboDataFilter</title>
+    <title>ComboDataFilter Pro (GitHub Pages)</title>
     <style>
         :root {
             --primary: #0284c7;
@@ -303,12 +303,34 @@
             color: #64748b;
             border-top: 1px solid var(--border);
         }
+
+        .file-upload-area {
+            border: 2px dashed var(--primary);
+            border-radius: 8px;
+            padding: 24px;
+            text-align: center;
+            background: #f0f9ff;
+            margin-bottom: 16px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .file-upload-area:hover {
+            border-color: #0369a1;
+            background: #e0f2fe;
+        }
+
+        .file-upload-area.dragover {
+            border-color: var(--success);
+            background: #f0fdf4;
+            transform: scale(1.02);
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>⚡ Texteditor</h1>
+            <h1>⚡ ComboDataFilter Pro</h1>
             <p>Serverless Keyword-Filtering für große Datenmengen (läuft 100% im Browser)</p>
         </div>
 
@@ -329,21 +351,23 @@
                     💡 <strong>Tipp:</strong> Enter-Taste = sofort filtern. Paste = auto-filter nach 500ms.
                 </div>
 
-                <label for="input" style="margin-top: 16px;">Daten reinkopieren oder Datei uploaden</label>
+                <label for="fileInput" style="margin-top: 16px;">Datei hochladen (bis 2GB) oder Text einfügen</label>
                 
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+                <div class="file-upload-area" onclick="document.getElementById('fileInput').click()">
+                    <div style="font-size: 48px; margin-bottom: 12px;">📁</div>
+                    <div style="font-weight: 600; color: var(--primary);">Datei hier ablegen oder klicken</div>
+                    <div style="font-size: 12px; color: #64748b; margin-top: 4px;">.txt, .csv, .log, .dat (max 2GB)</div>
                     <input 
                         type="file" 
                         id="fileInput" 
                         accept=".txt,.csv,.log,.dat"
-                        style="padding: 12px; border: 2px dashed var(--primary); border-radius: 8px; cursor: pointer; background: #f0f9ff; color: var(--text); font-size: 13px;"
+                        style="display: none;"
                     >
-                    <button class="btn-secondary" onclick="handleFileUpload()" style="margin: 0;">📁 Datei laden</button>
                 </div>
 
                 <textarea 
                     id="input" 
-                    placeholder="Daten hier einfügen oder oben Datei uploaden..."
+                    placeholder=""
                 ></textarea>
 
                 <div class="button-group">
@@ -380,8 +404,7 @@
             <!-- Rechte Spalte: Output -->
             <div class="section output-section">
                 <h2>📤 Ergebnis (nur Treffer)</h2>
-                <div id="output">Gefilterte Zeilen erscheinen hier...
-Paste deine Daten links ein und klick "Filter anwenden" oder drück Enter!</div>
+                <div id="output"></div>
                 
                 <button class="copy-btn-small" onclick="copyOutput()">📋 Ergebnis kopieren</button>
                 <div class="success-message" id="successMsg">✓ Ergebnis in Zwischenablage kopiert!</div>
@@ -390,59 +413,87 @@ Paste deine Daten links ein und klick "Filter anwenden" oder drück Enter!</div>
 
         <div class="footer">
             💻 100% Browser-basiert (kein Server) | 🚀 Blitzschnell | 🔒 Daten verlassen deinen PC nicht | 
-            <a href="https://github.com" target="_blank" style="color: #0284c7; text-decoration: none;">GitHub</a>
+            <a href="https://github.com/revessky/ComboDataFilter" target="_blank" style="color: #0284c7; text-decoration: none;">GitHub</a>
         </div>
     </div>
 
     <script>
         let lastTimeout = null;
+        let currentFileContent = '';
 
         function updateRAMUsage() {
             if (performance.memory) {
                 const usedMB = Math.round(performance.memory.usedJSHeapSize / 1048576);
                 document.getElementById('ramUsage').textContent = usedMB + 'MB';
-                if (usedMB > 3000) alert('⚠️ RAM >3GB! Daten teilen oder Browser neustarten.');
+                if (usedMB > 3000) {
+                    document.getElementById('statusText').textContent = '⚠️ Hoher RAM-Verbrauch!';
+                }
             }
         }
 
-        async function filterLines() {
+        async function readLargeFile(file, progressCallback) {
+            const CHUNK_SIZE = 5 * 1024 * 1024; // 5MB Chunks
+            let result = '';
+            let offset = 0;
+            
+            while (offset < file.size) {
+                const slice = file.slice(offset, offset + CHUNK_SIZE);
+                const text = await new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve(reader.result);
+                    reader.onerror = reject;
+                    reader.readAsText(slice);
+                });
+                
+                result += text;
+                
+                offset += CHUNK_SIZE;
+                if (progressCallback) {
+                    progressCallback(Math.round((offset / file.size) * 100));
+                }
+                
+                // Memory management
+                updateRAMUsage();
+                await new Promise(r => setTimeout(r, 10)); // Yield für UI
+            }
+            
+            return result;
+        }
+
+        function filterLines() {
             const startTime = performance.now();
-            const keywordsInput = document.getElementById('keywords').value.trim().toLowerCase();
-            const inputText = document.getElementById('input').value;
+            const keywordsInput = document.getElementById('keywords').value.trim();
+            const inputText = document.getElementById('input').value || currentFileContent;
 
             if (!keywordsInput) {
                 alert('❌ Keywords eingeben!');
                 return;
             }
-            
+
             if (!inputText.trim()) {
-                alert('❌ Keine Daten! Datei uploaden oder Text einfügen.');
+                alert('❌ Keine Daten zum Filtern!');
                 return;
             }
 
-            // Keywords splitten und bereinigen
-            const keywords = keywordsInput
+            const keywords = keywordsInput.toLowerCase()
                 .split(',')
                 .map(k => k.trim())
                 .filter(k => k.length > 0);
 
-            // Zeilen splitten und leer filtern
             const lines = inputText
                 .split('\n')
                 .map(l => l.trim())
                 .filter(l => l.length > 0);
 
             const totalLines = lines.length;
-            const CHUNK_SIZE = 50000; // 50k Zeilen pro Chunk
+            const CHUNK_SIZE = 50000;
             let filtered = [];
 
-            // Progress anzeigen wenn >100k Zeilen
             if (totalLines > 100000) {
                 document.getElementById('progressBar').style.display = 'block';
                 document.getElementById('statusText').textContent = '🔄 Verarbeite...';
             }
 
-            // Chunked Processing (verhindert UI-Freeze)
             for (let i = 0; i < totalLines; i += CHUNK_SIZE) {
                 const chunk = lines.slice(i, Math.min(i + CHUNK_SIZE, totalLines));
                 
@@ -453,17 +504,11 @@ Paste deine Daten links ein und klick "Filter anwenden" oder drück Enter!</div>
                     }
                 }
 
-                // Progress updaten
                 if (totalLines > 100000) {
                     const progress = Math.min(100, ((i + CHUNK_SIZE) / totalLines) * 100);
                     document.getElementById('progressFill').style.width = progress + '%';
                     document.getElementById('statusText').textContent = 
-                        `${Math.round(progress)}% (${(i + CHUNK_SIZE).toLocaleString('de-DE')} / ${totalLines.toLocaleString('de-DE')})`;
-                }
-
-                // Kurze Pause für Browser-Response (verhindert Crash)
-                if (i % (CHUNK_SIZE * 10) === 0) {
-                    await new Promise(r => setTimeout(r, 0));
+                        `${Math.round(progress)}% (${Math.round((i + CHUNK_SIZE)/1000)}k/${Math.round(totalLines/1000)}k)`;
                 }
 
                 updateRAMUsage();
@@ -472,14 +517,11 @@ Paste deine Daten links ein und klick "Filter anwenden" oder drück Enter!</div>
             const endTime = performance.now();
             const processingTime = (endTime - startTime).toFixed(2);
 
-            // Progress verstecken
             document.getElementById('progressBar').style.display = 'none';
 
-            // Update Output
             document.getElementById('output').textContent = 
                 filtered.length > 0 ? filtered.join('\n') : 'Keine Treffer gefunden.';
 
-            // Update Stats
             document.getElementById('totalLines').textContent = totalLines.toLocaleString('de-DE');
             document.getElementById('matchedLines').textContent = filtered.length.toLocaleString('de-DE');
             document.getElementById('percentMatch').textContent = 
@@ -493,18 +535,19 @@ Paste deine Daten links ein und klick "Filter anwenden" oder drück Enter!</div>
         function clearAll() {
             document.getElementById('keywords').value = '';
             document.getElementById('input').value = '';
-            document.getElementById('output').textContent = 
-                'Gefilterte Zeilen erscheinen hier...';
+            currentFileContent = '';
+            document.getElementById('output').textContent = '';
             document.getElementById('totalLines').textContent = '0';
             document.getElementById('matchedLines').textContent = '0';
             document.getElementById('percentMatch').textContent = '0%';
             document.getElementById('processingTime').textContent = '0ms';
+            document.getElementById('statusText').textContent = '';
             document.getElementById('keywords').focus();
         }
 
         function copyOutput() {
             const output = document.getElementById('output').textContent;
-            if (output === 'Gefilterte Zeilen erscheinen hier...' || output === 'Keine Treffer gefunden.') {
+            if (!output || output === 'Keine Treffer gefunden.') {
                 alert('Nichts zum Kopieren!');
                 return;
             }
@@ -516,7 +559,7 @@ Paste deine Daten links ein und klick "Filter anwenden" oder drück Enter!</div>
             });
         }
 
-        // Enter zum Filtern
+        // Event Listeners
         document.getElementById('keywords').addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {
                 e.preventDefault();
@@ -524,7 +567,6 @@ Paste deine Daten links ein und klick "Filter anwenden" oder drück Enter!</div>
             }
         });
 
-        // Auto-Filter nach Paste (500ms Verzögerung)
         document.getElementById('input').addEventListener('paste', function() {
             clearTimeout(lastTimeout);
             lastTimeout = setTimeout(() => {
@@ -534,68 +576,94 @@ Paste deine Daten links ein und klick "Filter anwenden" oder drück Enter!</div>
             }, 500);
         });
 
-        // File Upload Handler
-        async function handleFileUpload() {
-            const fileInput = document.getElementById('fileInput');
-            const file = fileInput.files[0];
+        // Drag & Drop + File Upload
+        const fileUploadArea = document.querySelector('.file-upload-area');
+        const fileInput = document.getElementById('fileInput');
 
-            if (!file) {
-                alert('❌ Bitte wähle eine Datei aus!');
-                return;
-            }
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            fileUploadArea.addEventListener(eventName, preventDefaults, false);
+            document.body.addEventListener(eventName, preventDefaults, false);
+        });
 
-            // Max 500MB Check
-            if (file.size > 500 * 1024 * 1024) {
-                alert('❌ Datei zu groß! Max 500MB erlaubt.');
-                return;
-            }
+        ['dragenter', 'dragover'].forEach(eventName => {
+            fileUploadArea.addEventListener(eventName, highlight, false);
+        });
 
-            const reader = new FileReader();
-            
-            reader.onload = async function(e) {
-                try {
-                    const content = e.target.result;
-                    document.getElementById('input').value = content;
-                    
-                    // Stats updaten
-                    const lines = content.split('\n').filter(l => l.trim().length > 0);
-                    document.getElementById('totalLines').textContent = lines.length.toLocaleString('de-DE');
-                    document.getElementById('statusText').textContent = `✅ ${file.name} geladen (${lines.length.toLocaleString('de-DE')} Zeilen)`;
-                    
-                    // Auto-scroll zu Input
-                    document.getElementById('input').scrollIntoView({ behavior: 'smooth' });
-                    
-                    // Auto-filter wenn Keywords exist
-                    if (document.getElementById('keywords').value.trim()) {
-                        await new Promise(r => setTimeout(r, 200));
-                        await filterLines();
-                    }
-                } catch (err) {
-                    alert('❌ Fehler beim Lesen der Datei: ' + err.message);
-                }
-            };
+        ['dragleave', 'drop'].forEach(eventName => {
+            fileUploadArea.addEventListener(eventName, unhighlight, false);
+        });
 
-            reader.onerror = function() {
-                alert('❌ Fehler beim Upload!');
-            };
+        fileUploadArea.addEventListener('drop', handleDrop, false);
+        fileInput.addEventListener('change', handleFileSelect, false);
 
-            reader.readAsText(file);
-            
-            // Reset file input
-            fileInput.value = '';
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
         }
 
-        // Click File Input on button (optional double-click)
-        document.getElementById('fileInput').addEventListener('change', function() {
-            if (this.files[0]) {
-                handleFileUpload();
-            }
-        });
+        function highlight(e) {
+            fileUploadArea.classList.add('dragover');
+        }
 
-        // Focus auf Keywords beim Load
+        function unhighlight(e) {
+            fileUploadArea.classList.remove('dragover');
+        }
+
+        async function handleDrop(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            await handleFiles(files[0]);
+        }
+
+        async function handleFileSelect() {
+            if (fileInput.files[0]) {
+                await handleFiles(fileInput.files[0]);
+            }
+        }
+
+        async function handleFiles(file) {
+            try {
+                document.getElementById('progressBar').style.display = 'block';
+                document.getElementById('progressFill').style.width = '0%';
+                document.getElementById('statusText').textContent = '📂 Lade Datei...';
+
+                if (file.size > 2 * 1024 * 1024 * 1024) {
+                    throw new Error('Datei zu groß! Max 2GB erlaubt.');
+                }
+
+                const content = await readLargeFile(file, (progress) => {
+                    document.getElementById('progressFill').style.width = progress + '%';
+                    document.getElementById('statusText').textContent = `📂 Lade... ${progress}% (${Math.round(file.size/1024/1024)}MB)`;
+                });
+
+                currentFileContent = content;
+                document.getElementById('input').value = content.substring(0, 1000000); // Erste 1M Zeichen anzeigen
+
+                const lines = content.split('\n').filter(l => l.trim().length > 0);
+                document.getElementById('totalLines').textContent = lines.length.toLocaleString('de-DE');
+                document.getElementById('statusText').textContent = `✅ ${file.name} geladen (${lines.length.toLocaleString('de-DE')} Zeilen)`;
+
+                // Auto-filter wenn Keywords da
+                if (document.getElementById('keywords').value.trim()) {
+                    setTimeout(filterLines, 500);
+                }
+
+            } catch (error) {
+                alert('❌ Upload-Fehler: ' + error.message);
+                document.getElementById('statusText').textContent = '❌ Fehler!';
+            } finally {
+                document.getElementById('progressBar').style.display = 'none';
+            }
+        }
+
+        // Focus auf Keywords
         window.addEventListener('load', () => {
             document.getElementById('keywords').focus();
+            updateRAMUsage();
         });
+
+        // Periodisches RAM Monitoring
+        setInterval(updateRAMUsage, 5000);
     </script>
 </body>
 </html>
